@@ -1,0 +1,40 @@
+mean_std: "CELLPAINTING_1"   # or "IMAGENET", "CELLPAINTING_1", "MAE", "CUSTOM"
+debug_mode: False
+resume: True
+tvn: False
+checkpoint: "checkpoints/sith-podracer-153_1s1ie7i1/2025-05-05_17:34:55_ResNet50_Modified_epoch_28.pth" 
+records: False #for statistic
+batch_size: 1024
+eval_split: 0.2
+test_split: 0.1
+gradcam: False
+freeze: False
+pretrained: False
+inference: True #run on testset
+lr: 0.001
+lr_scheduler: auto # or cosine or step
+architecture: ResNet50_Modified # ResNet50_Modified or OpenPhenomMAE or MultiChannel
+early_stopping_metric: Accuracy
+early_stopping_patience: 5
+epochs: 40
+splits: batches # or wells or random or plates or batches
+seed: 24
+index: all_sources.pq
+source_types: source_1
+image_path:  "../../jumpcp/" #"images/raw/" # # "../../jumpcp/"
+augmentation:
+  resize: [224, 224]
+  RandomResizedCrop:
+    scale: (0.5, 1.0)
+    ratio: (1,1)
+    prop: 0.5
+  horizontal_flip_prob: 0
+  vertical_flip_prob: 0
+  rotation_prob: 
+  noise_std: 0
+  noise_prob: 0
+  brightness_contrast_prob: 0
+  plasma_shadow: 
+    #shadow_intensity_range: (0.3, 0.7)
+    #prob: 0.5
+    #roughness: 3.0

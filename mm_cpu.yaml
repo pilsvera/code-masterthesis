@@ -1,0 +1,45 @@
+name: mm_cpu
+
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  # core scientific
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  # image / data I/O
+  - pillow
+  - tifffile
+  - pyyaml
+  # dimensionality reduction / viz
+  - umap-learn
+  - seaborn
+  # progress / utilities
+  - tqdm
+  - pyarrow
+  # pytorch CPU-only
+  - pytorch::pytorch
+  - pytorch::torchvision
+  - pytorch::cpuonly
+  # pip-only packages
+  - pip
+  - pip:
+    - harmonypy
+    - wandb
+    - timm
+    - transformers
+    - albumentations
+    - grad-cam
+    - torchcam
+    - schedulefree
+    - scvi-tools
+    - neuroCombat
+    - scanorama
+    - geosketch

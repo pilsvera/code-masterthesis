@@ -1,0 +1,33 @@
+mean_std: "CELLPAINTING_3_w_NEG"
+debug_mode: False
+synthetic: False
+resume: False
+embedding_mode: False
+gradcam: False
+freeze: True
+mode: "combined"
+checkpoint:
+embeddings_path: ""
+records: False
+batch_size: 64
+eval_split: 0.2
+test_split: 0.1
+num_workers: 8
+return_channelwise_embeddings: True
+inference: False
+lr: 0.001
+lr_scheduler: auto
+weight_decay: 0.01
+label_smoothing: 0.1
+lr_warmup_epochs: 5
+architecture: OpenPhenomMAE
+early_stopping_metric: Accuracy
+early_stopping_patience: 10
+epochs: 100
+splits: batches
+seed: 12
+index: all_sources.pq
+source_types: source_3_w_neg
+image_path: "masterthesis/source_3/"
+augmentation:
+  resize: [256, 256]

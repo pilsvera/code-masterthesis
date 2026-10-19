@@ -1,0 +1,19 @@
+# Extraction-only config for the Source-1 MAE run (generous-pond-415).
+#
+# MATCHES THE MAE CANONICAL (honest-snowflake-408) EXTRACTION — which was CLEAN.
+# Verified from its extraction log (slurm-8179044_0.out): the built train pipeline
+# was just `GaussNoise(p=0.0)  ·  Resize(256)` — no RandomResizedCrop, no plasma_shadow,
+# no flips. (The MAE canonical passed its own `config:`-wrapped YAML, which args_to_config
+# reads flat → aug_base came out EMPTY → crop/shadow dropped; flats were zeroed via CLI.)
+# So unlike the ResNet canonical (fully augmented), the MAE embeddings are clean. To keep
+# the MAE Source-1 vs Source-3 comparison apples-to-apples we reproduce that CLEAN pipeline:
+# this augmentation block deliberately has NO crop/shadow, and the slrm zeroes the flat
+# probs. resize is 256 (MAE), overridden again on the CLI.
+#
+# Only quirk still needed: `mean_std` under --resume falls back to CELLPAINTING_1
+# (train.py:401). generous-pond-415 was trained with CELLPAINTING_1_w_NEG, so we inject
+# mean_std here to survive the fallback (`_aug_cfg = dict(config["augmentation"])`;
+# check_resume skips `augmentation`, so validation still passes).
+augmentation:
+  resize: [256, 256]
+  mean_std: CELLPAINTING_1_w_NEG   # <-- survives the --resume normalization fallback
