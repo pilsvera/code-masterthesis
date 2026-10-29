@@ -1,0 +1,48 @@
+mean_std: "CELLPAINTING_3_w_NEG"   # or "IMAGENET", "CELLPAINTING_1", "MAE", "CUSTOM", #CELLPAINTING_3_w_NEG
+debug_mode: False
+synthetic: False
+resume: False
+embedding_mode: False #image -> false or embeddings -> true
+freeze: False
+mode: "combined" # "channel-wise"
+checkpoint: 
+embeddings_path: "checkpoints/rare-vortex-325_5x40s102/channelwise_embeddings/transformed_embeddings.npz"
+records: False #for statistic
+batch_size: 64
+eval_split: 0.2
+test_split: 0.1
+num_workers: 8
+return_channelwise_embeddings: True
+inference: False #run on testset
+lr: 0.001
+lr_scheduler: auto # or cosine or step
+weight_decay: 0.01
+label_smoothing: 0.1
+lr_warmup_epochs: 5  # linear warmup before cosine decay (cosine scheduler only)
+architecture: OpenPhenomMAE # ResNet50_Modified or OpenPhenomMAE or MultiChannel
+early_stopping_metric: Accuracy
+early_stopping_patience: 10
+epochs: 100
+splits: batches # or wells or random or plates or batches
+seed: 12
+index: all_sources.pq
+source_types: source_3_w_neg
+image_path:  "masterthesis/source_3/" #"images/raw/" # # "../../jumpcp/"
+augmentation:
+  resize: [256, 256]
+  RandomResizedCrop:
+    scale: [0.5, 1.0]
+    ratio: [1, 1]
+    prob: 0.5
+  horizontal_flip_prob: 0.5
+  vertical_flip_prob: 0.5
+  rotation_prob: 0.5
+  noise_std: 0.2
+  noise_prob: 0.5
+  blur_prob: 0.2
+  brightness_contrast_prob: 0.5
+  coarse_dropout_prob: 0.3
+  plasma_shadow:
+    shadow_intensity_range: [0.3, 0.7]
+    roughness: 3.0
+    prob: 0.5

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+wandb/
+checkpoints/
+masterthesis/source_3
+masterthesis/source_1
+2023_Arevalo_NatComm_BatchCorrection/
+slurm-*.out

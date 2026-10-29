@@ -1,0 +1,78 @@
+#!/bin/bash -l
+#SBATCH -J matrix_resnet
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=100
+#SBATCH --partition=zen3_0512_a100x2
+#SBATCH --qos=p71863_a100dual
+#SBATCH --gres=gpu:2
+#SBATCH -t 2-00:00:00
+#SBATCH --array=0-11
+
+# Master-thesis ResNet50_Modified matrix on source_3.
+# Replicates the eager-sound-321 reference config exactly.
+# 4 splits x 3 seeds = 12 cells. Submit --array=1-11 to skip batches/seed12
+# (already covered by eager-sound-321).
+#
+# Normalisation: CELLPAINTING_1 is the name under which custom_meanstd.py stores the
+# per-channel constants the thesis lists for the Source-3 images (means 0.136, 0.151,
+# 0.122, 0.132, 0.105; standard deviations 0.134, 0.148, 0.096, 0.130, 0.088). The
+# original runs were launched with --mean-std CELLPAINTING_3_w_NEG, but train.py at
+# that time ignored the flag and applied CELLPAINTING_1; the train.py shipped here
+# honours the flag, so the constants that were actually used are named explicitly.
+# --index all_sources.pq is only consulted when source_3_w_neg.pq is absent (it is not).
+
+source ~/data/miniconda3/etc/profile.d/conda.sh
+conda activate mm_cuda
+cd "${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")" && pwd)}"   # repository root (submit from there)
+export PYTHONPATH=$PWD:$PYTHONPATH
+
+SPLITS=(batches batches batches plates plates plates wells wells wells random random random)
+SEEDS=(12 24 42 12 24 42 12 24 42 12 24 42)
+
+IDX=${SLURM_ARRAY_TASK_ID:-${IDX:-0}}
+SPLIT=${SPLITS[$IDX]}
+SEED=${SEEDS[$IDX]}
+
+echo "=== ResNet matrix cell: split=$SPLIT seed=$SEED (task $IDX) ==="
+echo "Host: $(hostname)"
+which python && python --version
+
+# srun does not inherit --cpus-per-task from sbatch. Without the flag the step runs on
+# one core, the eight data-loader workers starve and an epoch takes about 45 instead of
+# 16 minutes, which is why the thesis runs were cut off by the time limit (see README).
+srun --cpus-per-task="${SLURM_CPUS_PER_TASK:-1}" python3 masterthesis/train.py \
+    --architecture ResNet50_Modified \
+    --source-types source_3_w_neg \
+    --mean-std CELLPAINTING_1 \
+    --index all_sources.pq \
+    --image-path masterthesis/source_3/ \
+    --mode combined \
+    --pretrained \
+    --no-freeze \
+    --batch-size 64 \
+    --epochs 100 \
+    --lr 0.001 \
+    --lr-scheduler auto \
+    --lr-warmup-epochs 0 \
+    --weight-decay 0 \
+    --label-smoothing 0 \
+    --early-stopping-metric Accuracy \
+    --early-stopping-patience 10 \
+    --eval-split 0.2 \
+    --test-split 0.1 \
+    --num-workers 8 \
+    --resize 224 224 \
+    --horizontal-flip-prob 0.5 \
+    --vertical-flip-prob 0.5 \
+    --rotation-prob 0 \
+    --noise-std 0.2 \
+    --noise-prob 0.5 \
+    --brightness-contrast-prob 0.5 \
+    --blur-prob 0 \
+    --coarse-dropout-prob 0 \
+    --return-channelwise-embeddings false \
+    --splits "$SPLIT" \
+    --seed "$SEED"
+
+echo "=== Done: task $IDX (split=$SPLIT seed=$SEED) ==="

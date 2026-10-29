@@ -1,0 +1,43 @@
+# Extraction-only config for the Source-1 ResNet run (eager-snowball-414).
+#
+# WHY THIS FILE EXISTS (two extraction-path quirks it works around):
+#
+#  1. Normalization under --resume.  train.py only injects the top-level
+#     `mean_std` into the augmentation transform when NOT resuming
+#     (the `resume` check in the dataset setup of train.py). Extraction uses --resume, so the transform
+#     would silently fall back to CELLPAINTING_1. That fallback was CORRECT for
+#     the old checkpoints (trained with the CELLPAINTING_1 bug), but eager-snowball
+#     was trained FRESH with CELLPAINTING_1_w_NEG — so the fallback would MISMATCH
+#     its training and corrupt the embeddings. Fix: put `mean_std` INSIDE the
+#     augmentation block below; `_aug_cfg = dict(config["augmentation"])` then
+#     carries it past the resume gate. (check_resume skips `augmentation`, so this
+#     does not break config validation.)
+#
+#  2. "Match canonical (augmented)".  The canonical ResNet S3 embeddings were
+#     dumped through this exact augmentation pipeline (wandb_config.yaml's set:
+#     RandomResizedCrop + all flips/rotation/noise/blur/brightness/coarse-dropout
+#     + plasma_shadow). To keep the Source-1 vs Source-3 comparison apples-to-apples
+#     we reproduce that same pipeline here rather than eager-snowball's own
+#     (lighter) training augmentation. resize is overridden to 224 on the CLI.
+#
+# Only the `augmentation:` block is read from this file (aug_base); every other
+# setting comes from explicit CLI args in gpu_extract_resnet_s1.slrm.
+augmentation:
+  resize: [224, 224]
+  RandomResizedCrop:
+    scale: [0.5, 1.0]
+    ratio: [1, 1]
+    prob: 0.5
+  horizontal_flip_prob: 0.5
+  vertical_flip_prob: 0.5
+  rotation_prob: 0.5
+  noise_std: 0.2
+  noise_prob: 0.5
+  blur_prob: 0.2
+  brightness_contrast_prob: 0.5
+  coarse_dropout_prob: 0.3
+  plasma_shadow:
+    shadow_intensity_range: [0.3, 0.7]
+    roughness: 3.0
+    prob: 0.5
+  mean_std: CELLPAINTING_1_w_NEG   # <-- survives the --resume normalization fallback

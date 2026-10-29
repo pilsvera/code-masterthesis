@@ -1,0 +1,60 @@
+#!/bin/bash -l
+#SBATCH -J reproduce_post
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=100
+#SBATCH --partition=zen3_0512_a100x2
+#SBATCH --qos=p71863_a100dual
+#SBATCH --gres=gpu:2
+#SBATCH -t 1-00:00:00
+#SBATCH --output=slurm-%j.out
+#
+# README steps 1 (embedding extraction), 2 (corrections) and 3 (scoring) for one training
+# run of this clone. Submitted by reproduce_canonical.sh, or on its own:
+#     sbatch --export=ALL,RUN=checkpoints/<run> reproduce_post.slrm
+# Without RUN, the newest run directory that holds a checkpoint is used.
+# Set REF_JSON=<path to a thesis eval_all_wellagg.json> to also print the comparison.
+set -eo pipefail
+source ~/data/miniconda3/etc/profile.d/conda.sh
+conda activate mm_cuda
+cd "${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")" && pwd)}"
+export PYTHONPATH=$PWD:$PYTHONPATH
+export OPENBLAS_NUM_THREADS=4
+export WANDB_MODE=offline
+META=source_3_w_neg.pq
+
+R="${RUN:-}"
+if [ -z "$R" ]; then
+    for d in $(ls -td checkpoints/*/ 2>/dev/null); do
+        d=${d%/}
+        if [ -f "$d/split_keys.json" ] && ls "$d"/*.pth >/dev/null 2>&1; then R=$d; break; fi
+    done
+fi
+[ -n "$R" ] || { echo "no run with a checkpoint found in checkpoints/"; exit 1; }
+read -r SPLIT SEED < <(python3 -c "import json; d=json.load(open('$R/split_keys.json')); print(d['split_strategy'], d['random_state'])")
+PTH="$R/ResNet50_Modified_best_model.pth"
+[ -f "$PTH" ] || PTH=$(ls -v "$R"/*_epoch_*.pth | tail -1)
+echo "run $R   split=$SPLIT seed=$SEED   checkpoint=$PTH"
+D="$R/channelwise_embeddings"
+
+# step 1, the embeddings
+if [ ! -f "$D/train_channelwise_embeddings.npz" ]; then
+    python3 masterthesis/train.py --architecture ResNet50_Modified --source-types source_3_w_neg \
+        --mean-std CELLPAINTING_1 --image-path masterthesis/source_3/ --resize 224 224 \
+        --eval-split 0.2 --test-split 0.1 --batch-size 64 --num-workers 8 --pretrained --no-freeze \
+        --splits "$SPLIT" --seed "$SEED" \
+        --resume --checkpoint "$PTH" --return-channelwise-embeddings true
+fi
+
+# step 2, the corrections (Seurat needs an R environment with Seurat v5, see README)
+python3 masterthesis/normalize_pipeline.py --input-dir "$D" --meta-path $META --pre sphering --method none
+python3 masterthesis/normalize_pipeline.py --input-dir "$D" --meta-path $META --pre mad --method none
+./run_methods.sh --input-dir "$D" --meta-path $META
+
+# step 3, the cross-batch AUROC written into the same JSON
+python3 masterthesis/recompute_auroc_variants.py --runs "$D" --meta-path $META
+
+if [ -n "${REF_JSON:-}" ] && [ -f "$REF_JSON" ]; then
+    python3 compare_eval.py "$D/eval_all_wellagg.json" "$REF_JSON" | tee "$R/compare_with_reference.txt"
+fi
+echo "done: $D/eval_all_wellagg.json"
